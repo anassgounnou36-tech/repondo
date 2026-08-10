@@ -1,6 +1,11 @@
 // Webhook unique 360dialog : gere 2 types d'evenements
 // 1. Notification "channel ready" -> on enregistre la cle API du client
 // 2. Message WhatsApp entrant -> on genere et envoie la reponse
+//
+// CORRECTIF : 360dialog ne renvoie PAS votre cle de canal dans le webhook.
+// On identifie donc le client par le numero WhatsApp destinataire, present
+// dans le payload (metadata.display_phone_number), puis on lit sa cle API
+// depuis Airtable. L'ancien fonctionnement par ?key= reste accepte en secours.
 
 const AIRTABLE_BASE = 'appJeJpHTfTIJakQ7';
 const LEADS_TABLE = 'tbl59sHf4hsoE7FIp';
@@ -42,14 +47,45 @@ async function airtable(path, options) {
   return res.json();
 }
 
+// Ne garde que les chiffres : "+212 661-23 45 67" -> "212661234567"
+function digits(v) {
+  return String(v || '').replace(/\D/g, '');
+}
+
+// --- Identification du client ---------------------------------------------
+// Priorite 1 : le numero WhatsApp qui a recu le message (toujours dans le payload)
+// Priorite 2 : ?key= dans l'URL du webhook (ancien fonctionnement, secours)
+async function trouverClient(numeroDestinataire, cleSecours) {
+  const num = digits(numeroDestinataire);
+
+  if (num) {
+    const formule = `FIND("${num}", SUBSTITUTE(SUBSTITUTE(SUBSTITUTE({360dialog Phone}, " ", ""), "+", ""), "-", "")) > 0`;
+    const q = await airtable(
+      AIRTABLE_BASE + '/' + CLIENTS_TABLE +
+      '?filterByFormula=' + encodeURIComponent(formule) + '&maxRecords=1'
+    );
+    if (q.records && q.records[0]) return q.records[0];
+    console.error('Aucun client Airtable pour le numero destinataire ' + num);
+  }
+
+  if (cleSecours) {
+    const q = await airtable(
+      AIRTABLE_BASE + '/' + CLIENTS_TABLE +
+      '?filterByFormula=' + encodeURIComponent(`{360dialog Channel Key}='${cleSecours}'`) + '&maxRecords=1'
+    );
+    if (q.records && q.records[0]) return q.records[0];
+  }
+
+  return null;
+}
+
 // --- EVENT 1 : un client vient de terminer l'inscription (nouveau canal cree) ---
 async function handleChannelReady(payload) {
   // Format Partner Webhook 360dialog: { waba_account: {...}, channels: [{ id, phone_number, api_key }] }
   const channel = payload.channels && payload.channels[0];
   if (!channel) return { skipped: 'no channel in payload' };
 
-  // On cherche le client dont le numero correspond (a saisir manuellement dans Airtable au moment de l'envoi du lien)
-  const phoneClean = (channel.phone_number || '').replace(/\D/g, '');
+  const phoneClean = digits(channel.phone_number);
   const clientQuery = await airtable(
     AIRTABLE_BASE + '/' + CLIENTS_TABLE +
     '?filterByFormula=' + encodeURIComponent(`FIND("${phoneClean}", SUBSTITUTE({WhatsApp}, " ", "")) > 0`) +
@@ -74,7 +110,7 @@ async function handleChannelReady(payload) {
 }
 
 // --- EVENT 2 : message WhatsApp entrant d'un client final ---
-async function handleIncomingMessage(payload, channelApiKey) {
+async function handleIncomingMessage(payload, cleSecours) {
   const entry = payload.entry && payload.entry[0];
   const change = entry && entry.changes && entry.changes[0];
   const value = change && change.value;
@@ -87,14 +123,17 @@ async function handleIncomingMessage(payload, channelApiKey) {
 
   if (!text.trim()) return { skipped: 'no text' };
 
-  // Retrouver le client via la cle API du canal qui a recu ce message
-  const clientQuery = await airtable(
-    AIRTABLE_BASE + '/' + CLIENTS_TABLE +
-    '?filterByFormula=' + encodeURIComponent(`{360dialog Channel Key}='${channelApiKey}'`) +
-    '&maxRecords=1'
-  );
-  const clientRec = clientQuery.records && clientQuery.records[0];
-  if (!clientRec) return { error: 'unknown channel key' };
+  // Le numero du client Repondo qui a recu ce message
+  const numeroRecu = value.metadata && value.metadata.display_phone_number;
+
+  const clientRec = await trouverClient(numeroRecu, cleSecours);
+  if (!clientRec) return { error: 'client introuvable pour ' + (numeroRecu || 'numero inconnu') };
+
+  const channelApiKey = clientRec.fields['360dialog Channel Key'];
+  if (!channelApiKey) {
+    console.error('Client ' + clientRec.id + ' sans cle 360dialog');
+    return { error: 'cle 360dialog absente sur la fiche client' };
+  }
 
   const cf = clientRec.fields;
   const configBlock = [
@@ -186,10 +225,11 @@ export default async function handler(req, res) {
       return res.status(200).json(result);
     }
 
-    // Message entrant (format Cloud API standard, avec la cle du canal en query param)
-    const channelApiKey = req.headers['d360-api-key'] || req.query.key;
-    if (body.entry && channelApiKey) {
-      const result = await handleIncomingMessage(body, channelApiKey);
+    // Message entrant (format Cloud API standard).
+    // Plus besoin de cle dans l'URL : on identifie le client par le numero destinataire.
+    if (body.entry) {
+      const cleSecours = req.headers['d360-api-key'] || (req.query && req.query.key) || null;
+      const result = await handleIncomingMessage(body, cleSecours);
       return res.status(200).json(result);
     }
 
