@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/dentaire", "destination": "/index.html" },
+    { "source": "/immobilier", "destination": "/index.html" },
+    { "source": "/confidentialite", "destination": "/confidentialite.html" }
+  ]
+}

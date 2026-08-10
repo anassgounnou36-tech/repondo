@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Politique de confidentialité · Répondo</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#F4F6F8;color:#111826;line-height:1.65;
+-webkit-font-smoothing:antialiased}
+.shell{max-width:44rem;margin:0 auto;padding:3rem 1.25rem 5rem}
+h1{font-size:1.9rem;letter-spacing:-.02em;margin-bottom:.4rem}
+.maj{color:#93A0B4;font-size:.9rem;margin-bottom:2.5rem}
+h2{font-size:1.15rem;margin:2.25rem 0 .6rem;letter-spacing:-.01em}
+p{color:#5A6579;margin-bottom:.8rem}
+ul{color:#5A6579;margin:0 0 .8rem 1.25rem}
+li{margin-bottom:.35rem}
+strong{color:#111826}
+a{color:#0F9F63}
+.box{background:#fff;border:1px solid #DFE4EA;border-radius:12px;padding:1.25rem;margin:1.25rem 0}
+footer{margin-top:3rem;padding-top:1.5rem;border-top:1px solid #DFE4EA;color:#93A0B4;font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<h1>Politique de confidentialité</h1>
+<p class="maj">Répondo — dernière mise à jour : 10 août 2026</p>
+
+<p>Répondo est un service qui répond automatiquement aux messages reçus par une entreprise, et qui peut, avec son autorisation, consulter ses disponibilités et créer des rendez-vous dans son agenda.</p>
+<p>Cette page décrit exactement quelles données sont traitées, pourquoi, et comment les supprimer.</p>
+
+<h2>Responsable du traitement</h2>
+<p>Anass Gounnou — Répondo, Maroc. Contact : <a href="mailto:contact@repondo.online">contact@repondo.online</a></p>
+
+<h2>Données que nous traitons</h2>
+<p><strong>Données de l'entreprise cliente :</strong> nom de l'entreprise, nom du contact, adresse email, numéro de téléphone, ville, secteur, description des services, et les consignes de réponse qu'elle nous fournit.</p>
+<p><strong>Données des personnes qui contactent l'entreprise :</strong> nom, numéro de téléphone ou adresse email, contenu du message envoyé, et la réponse générée. Ces données sont traitées pour le compte de l'entreprise cliente, qui en reste responsable.</p>
+<p><strong>Données Google Calendar :</strong> uniquement lorsque l'entreprise connecte volontairement son agenda.</p>
+
+<h2>Utilisation des données Google</h2>
+<div class="box">
+<p><strong>L'utilisation par Répondo des informations reçues des API Google respecte la <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>, y compris ses exigences d'utilisation limitée (Limited Use).</strong></p>
+</div>
+<p>Nous demandons deux autorisations, et rien de plus :</p>
+<ul>
+<li><strong>calendar.readonly</strong> — pour lire les plages occupées de l'agenda et ne proposer que des créneaux réellement libres. Nous ne lisons ni le titre, ni les participants, ni le contenu de vos rendez-vous existants : uniquement les intervalles occupé/libre.</li>
+<li><strong>calendar.events</strong> — pour créer l'événement du rendez-vous pris, avec le nom de la personne, son numéro et sa demande.</li>
+</ul>
+<p>Les données Google ne sont jamais vendues, jamais transmises à des tiers à des fins publicitaires, jamais utilisées pour de la publicité ciblée, et jamais utilisées pour entraîner des modèles d'intelligence artificielle. Aucun être humain ne les consulte, sauf si vous nous demandez explicitement de résoudre un problème technique, ou si la loi l'exige.</p>
+
+<h2>Sous-traitants</h2>
+<ul>
+<li><strong>Anthropic (Claude)</strong> — génération des réponses. Le contenu des messages y est transmis pour être traité. Anthropic n'utilise pas ces données pour entraîner ses modèles via l'API.</li>
+<li><strong>Airtable</strong> — stockage de la configuration des clients et de l'historique des demandes.</li>
+<li><strong>Vercel</strong> — hébergement du service.</li>
+<li><strong>360dialog / Meta</strong> — acheminement des messages WhatsApp, lorsque ce canal est utilisé.</li>
+</ul>
+
+<h2>Sécurité</h2>
+<p>Les autorisations Google (jetons de rafraîchissement) sont chiffrées en AES-256-GCM avant tout stockage. Aucun jeton n'est stocké en clair. Les clés de chiffrement et les identifiants d'API sont conservés dans des variables d'environnement chiffrées, séparées de la base de données.</p>
+<p>Nous ne demandons, ne voyons et ne stockons jamais votre mot de passe Google. L'autorisation passe exclusivement par l'écran de connexion de Google.</p>
+
+<h2>Conservation et suppression</h2>
+<p>Les données sont conservées tant que le service est actif, puis supprimées dans les 30 jours suivant la fin du contrat.</p>
+<p>Vous pouvez à tout moment :</p>
+<ul>
+<li>Révoquer l'accès à votre agenda depuis <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a>. L'accès cesse immédiatement.</li>
+<li>Demander la suppression de toutes vos données en écrivant à <a href="mailto:contact@repondo.online">contact@repondo.online</a>. Nous traitons la demande sous 30 jours.</li>
+</ul>
+
+<h2>Vos droits</h2>
+<p>Conformément à la loi marocaine 09-08 relative à la protection des personnes physiques à l'égard du traitement des données à caractère personnel, et au RGPD lorsqu'il s'applique, vous disposez d'un droit d'accès, de rectification, d'opposition et de suppression. Écrivez-nous, nous répondons par écrit.</p>
+
+<h2>Modifications</h2>
+<p>Toute modification de cette politique sera publiée sur cette page, avec la date de mise à jour. Les changements substantiels sont notifiés par email aux clients actifs.</p>
+
+<footer>
+Répondo · <a href="/">repondo.online</a> · <a href="mailto:contact@repondo.online">contact@repondo.online</a>
+</footer>
+
+</div>
+</body>
+</html>
