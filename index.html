@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Répondo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+
+:root{
+  --paper:#F4F6F8;
+  --paper-raised:#FFFFFF;
+  --rule:#DFE4EA;
+  --ink:#111826;
+  --ink-soft:#5A6579;
+  --ink-faint:#93A0B4;
+
+  --night:#0D1524;
+  --night-raised:#182236;
+  --night-line:#243149;
+  --night-text:#E8EDF5;
+  --night-soft:#8494AC;
+
+  --signal:#3DD68C;
+  --signal-deep:#0F9F63;
+  --lamp:#F5B841;
+  --alert:#F87171;
+
+  --display:"Bricolage Grotesque",system-ui,sans-serif;
+  --body:"Instrument Sans",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+
+html{ scroll-behavior:smooth; }
+body{
+  font-family:var(--body);
+  background:var(--paper);
+  color:var(--ink);
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+
+.shell{ max-width:860px; margin:0 auto; padding:0 1.25rem 5rem; }
+
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:1.5rem 0 3.5rem; gap:1rem; flex-wrap:wrap;
+}
+.brand{ display:flex; align-items:center; gap:.6rem; }
+.brand-mark{
+  width:30px; height:30px; border-radius:50%;
+  background:var(--night); position:relative; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; gap:3px;
+}
+.brand-mark i{ width:4px; height:4px; border-radius:50%; background:var(--signal); display:block; }
+.brand-mark i:nth-child(2){ opacity:.6; }
+.brand-mark i:nth-child(3){ opacity:.3; }
+.brand-mark::after{
+  content:''; position:absolute; bottom:-4px; left:9px;
+  border-left:5px solid transparent; border-right:5px solid transparent;
+  border-top:6px solid var(--night);
+}
+.brand-name{ font-family:var(--display); font-size:20px; font-weight:600; letter-spacing:-.02em; }
+.sector{
+  font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-soft); border:1px solid var(--rule); border-radius:2px;
+  padding:.35rem .7rem; background:var(--paper-raised);
+}
+
+.hero{ margin-bottom:2.25rem; }
+.clock{
+  font-family:var(--mono); font-size:12px; letter-spacing:.1em;
+  color:var(--ink-faint); margin-bottom:1rem; display:flex; align-items:center; gap:.6rem;
+}
+.clock::before{
+  content:''; width:28px; height:1px; background:var(--ink-faint); display:block;
+}
+.hero h1{
+  font-family:var(--display); font-weight:600; letter-spacing:-.035em;
+  font-size:clamp(2rem,6vw,3.15rem); line-height:1.06; margin-bottom:1rem;
+}
+.hero h1 .dim{ color:var(--ink-faint); }
+.hero p{
+  font-size:clamp(1rem,2.2vw,1.1rem); color:var(--ink-soft); max-width:46ch;
+}
+
+.night{
+  background:var(--night); border-radius:18px; overflow:hidden;
+  box-shadow:0 24px 60px -24px rgba(13,21,36,.5), 0 2px 8px rgba(13,21,36,.08);
+  margin-bottom:1rem;
+}
+.night-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.9rem 1.25rem; border-bottom:1px solid var(--night-line);
+  font-family:var(--mono); font-size:11px; letter-spacing:.08em;
+  color:var(--night-soft); text-transform:uppercase;
+}
+.night-head .live{ display:flex; align-items:center; gap:.45rem; color:var(--signal); }
+.night-head .live i{
+  width:6px; height:6px; border-radius:50%; background:var(--signal); display:block;
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.25;} }
+
+.thread{ padding:1.5rem 1.25rem; min-height:120px; }
+
+.msg{ margin-bottom:1.4rem; animation:rise .45s cubic-bezier(.2,.7,.3,1) both; }
+@keyframes rise{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+.msg-meta{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.07em;
+  color:var(--night-soft); margin-bottom:.4rem; display:flex; gap:.6rem; align-items:center;
+}
+.msg-body{ font-size:15px; line-height:1.6; white-space:pre-wrap; }
+
+.msg.them .msg-body{ color:var(--night-text); }
+.msg.them{ padding-left:1rem; border-left:2px solid var(--night-line); }
+
+.msg.us{ padding-left:1rem; border-left:2px solid var(--signal); }
+.msg.us .msg-body{ color:var(--night-text); }
+.msg.us .msg-meta{ color:var(--signal); }
+
+.elapsed{
+  font-family:var(--mono); font-size:10.5px; color:var(--lamp);
+  letter-spacing:.07em;
+}
+
+.typing{ display:flex; gap:4px; padding-left:1rem; }
+.typing i{
+  width:5px; height:5px; border-radius:50%; background:var(--night-soft); display:block;
+  animation:blink 1.3s ease-in-out infinite;
+}
+.typing i:nth-child(2){ animation-delay:.18s; }
+.typing i:nth-child(3){ animation-delay:.36s; }
+@keyframes blink{ 0%,60%,100%{opacity:.25;} 30%{opacity:1;} }
+
+.composer{ padding:1.1rem 1.25rem 1.35rem; border-top:1px solid var(--night-line); }
+.composer textarea{
+  width:100%; min-height:74px; resize:vertical;
+  background:var(--night-raised); border:1px solid var(--night-line);
+  border-radius:10px; padding:.85rem 1rem;
+  color:var(--night-text); font-family:var(--body); font-size:15px; line-height:1.55;
+  outline:none; transition:border-color .18s;
+}
+.composer textarea::placeholder{ color:var(--night-soft); }
+.composer textarea:focus{ border-color:var(--signal); }
+.composer-row{ display:flex; gap:.6rem; margin-top:.75rem; align-items:center; }
+.send{
+  flex:1; padding:.8rem 1.2rem; border:none; border-radius:10px;
+  background:var(--signal); color:var(--night); cursor:pointer;
+  font-family:var(--body); font-size:15px; font-weight:600;
+  transition:background .18s, transform .12s;
+}
+.send:hover:not(:disabled){ background:#4EE79B; }
+.send:active:not(:disabled){ transform:translateY(1px); }
+.send:disabled{ background:var(--night-line); color:var(--night-soft); cursor:not-allowed; }
+.restart{
+  padding:.8rem 1rem; border:1px solid var(--night-line); border-radius:10px;
+  background:transparent; color:var(--night-soft); cursor:pointer;
+  font-family:var(--mono); font-size:11px; letter-spacing:.06em; transition:color .18s, border-color .18s;
+}
+.restart:hover{ color:var(--night-text); border-color:var(--night-soft); }
+
+.fault{
+  display:none; margin-top:.75rem; padding:.7rem .9rem; border-radius:8px;
+  background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.3);
+  color:#FCA5A5; font-size:13px;
+}
+
+.seeds{ display:flex; gap:.45rem; flex-wrap:wrap; margin-bottom:2.75rem; }
+.seed{
+  font-family:var(--mono); font-size:11px; letter-spacing:.03em;
+  padding:.5rem .8rem; border-radius:2px; cursor:pointer;
+  background:var(--paper-raised); border:1px solid var(--rule); color:var(--ink-soft);
+  transition:border-color .18s, color .18s;
+}
+.seed:hover{ border-color:var(--ink); color:var(--ink); }
+
+.readout{
+  display:none; background:var(--paper-raised); border:1px solid var(--rule);
+  border-radius:14px; padding:1.35rem; margin-bottom:2.75rem;
+}
+.readout-label{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-faint); margin-bottom:1rem;
+}
+.facts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:8px; overflow:hidden; }
+.fact{ background:var(--paper-raised); padding:.85rem 1rem; }
+.fact-k{ font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:.3rem; }
+.fact-v{ font-size:14.5px; font-weight:500; }
+.fact-v.hot{ color:var(--signal-deep); }
+.fact-v.warm{ color:#B45309; }
+.fact-v.cold{ color:#475569; }
+
+.slots-wrap{ display:none; margin-top:1.1rem; padding-top:1.1rem; border-top:1px solid var(--rule); }
+.slots-wrap h4{ font-family:var(--display); font-size:15px; font-weight:600; margin-bottom:.2rem; }
+.slots-wrap p{ font-size:13.5px; color:var(--ink-soft); margin-bottom:.85rem; }
+.slots{ display:flex; gap:.5rem; flex-wrap:wrap; }
+.slot{
+  padding:.6rem 1rem; border-radius:8px; cursor:pointer;
+  background:var(--paper); border:1px solid var(--rule); color:var(--ink);
+  font-family:var(--body); font-size:14px; transition:all .18s;
+}
+.slot:hover{ background:var(--night); color:var(--night-text); border-color:var(--night); }
+.confirmed{
+  display:none; margin-top:.85rem; padding:.85rem 1rem; border-radius:8px;
+  background:rgba(61,214,140,.1); border:1px solid rgba(61,214,140,.35); font-size:14px;
+}
+
+.sec{ margin-bottom:3.25rem; }
+.sec-eyebrow{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-faint); margin-bottom:.7rem; display:flex; align-items:center; gap:.6rem;
+}
+.sec-eyebrow::before{ content:''; width:20px; height:1px; background:var(--ink-faint); }
+.sec h2{
+  font-family:var(--display); font-weight:600; letter-spacing:-.025em;
+  font-size:clamp(1.45rem,3.6vw,1.95rem); line-height:1.18; margin-bottom:.85rem;
+}
+.sec p{ color:var(--ink-soft); max-width:56ch; margin-bottom:.85rem; }
+.sec p:last-child{ margin-bottom:0; }
+.sec strong{ color:var(--ink); font-weight:600; }
+
+.report{ background:var(--paper-raised); border:1px solid var(--rule); border-radius:14px; overflow:hidden; }
+.report-top{
+  padding:1.1rem 1.35rem; border-bottom:1px solid var(--rule);
+  display:flex; justify-content:space-between; align-items:baseline; gap:1rem; flex-wrap:wrap;
+}
+.report-top h3{ font-family:var(--display); font-size:16px; font-weight:600; }
+.report-top span{ font-family:var(--mono); font-size:11px; color:var(--ink-faint); letter-spacing:.05em; }
+.numbers{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:1px; background:var(--rule); }
+.num{ background:var(--paper-raised); padding:1.15rem 1.35rem; }
+.num-v{ font-family:var(--display); font-size:1.85rem; font-weight:600; letter-spacing:-.03em; line-height:1; }
+.num-k{ font-family:var(--mono); font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint); margin-top:.4rem; }
+.report-note{ padding:1.1rem 1.35rem; border-top:1px solid var(--rule); font-size:14px; color:var(--ink-soft); }
+.report-note strong{ color:var(--ink); }
+.queue{ border-top:1px solid var(--rule); }
+.queue-label{ padding:1rem 1.35rem .5rem; font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); }
+.q-row{ display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:.8rem 1.35rem; border-top:1px solid var(--paper); }
+.q-name{ font-size:14.5px; font-weight:500; }
+.q-detail{ font-family:var(--mono); font-size:11px; color:var(--ink-faint); margin-top:.15rem; }
+.q-tag{ font-family:var(--mono); font-size:10px; letter-spacing:.06em; padding:.28rem .6rem; border-radius:2px; white-space:nowrap; }
+.q-tag.hot{ background:rgba(15,159,99,.12); color:var(--signal-deep); }
+.q-tag.warm{ background:rgba(245,184,65,.16); color:#92650B; }
+
+.close{ border-top:1px solid var(--rule); padding-top:2.25rem; }
+.close h2{ font-family:var(--display); font-size:clamp(1.4rem,3.4vw,1.8rem); font-weight:600; letter-spacing:-.025em; margin-bottom:.85rem; }
+.close p{ color:var(--ink-soft); max-width:52ch; margin-bottom:1.4rem; }
+.terms{ display:flex; gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:10px; overflow:hidden; flex-wrap:wrap; margin-bottom:1.5rem; }
+.term{ background:var(--paper-raised); padding:.9rem 1.2rem; flex:1; min-width:130px; }
+.term-v{ font-family:var(--display); font-size:1.05rem; font-weight:600; }
+.term-k{ font-family:var(--mono); font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint); margin-top:.2rem; }
+.switcher{ font-size:13.5px; color:var(--ink-faint); }
+.switcher a{ color:var(--ink); text-decoration:none; border-bottom:1px solid var(--rule); }
+.switcher a:hover{ border-color:var(--ink); }
+
+:focus-visible{ outline:2px solid var(--signal); outline-offset:2px; }
+
+@media (prefers-reduced-motion:reduce){
+  *{ animation:none !important; transition:none !important; }
+  html{ scroll-behavior:auto; }
+}
+
+@media (max-width:600px){
+  .shell{ padding:0 1rem 3.5rem; }
+  .topbar{ padding:1.25rem 0 2.5rem; }
+  .composer-row{ flex-direction:column; }
+  .send,.restart{ width:100%; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark"><i></i><i></i><i></i></div>
+      <div class="brand-name">Répondo</div>
+    </div>
+    <div class="sector" id="sector"></div>
+  </div>
+
+  <div class="hero">
+    <div class="clock" id="clockLine"></div>
+    <h1 id="heroTitle"></h1>
+    <p id="heroSub"></p>
+  </div>
+
+  <div class="night">
+    <div class="night-head">
+      <span id="threadLabel"></span>
+      <span class="live"><i></i> en direct</span>
+    </div>
+    <div class="thread" id="thread"></div>
+    <div class="composer">
+      <textarea id="input"></textarea>
+      <div class="composer-row">
+        <button class="send" id="send">Répondre à ce message</button>
+        <button class="restart" id="restart">EFFACER</button>
+      </div>
+      <div class="fault" id="fault"></div>
+    </div>
+  </div>
+
+  <div class="seeds" id="seeds"></div>
+
+  <div class="readout" id="readout">
+    <div class="readout-label">Ce que le système a compris</div>
+    <div class="facts" id="facts"></div>
+    <div class="slots-wrap" id="slotsWrap">
+      <h4 id="slotsTitle"></h4>
+      <p id="slotsSub"></p>
+      <div class="slots" id="slots"></div>
+      <div class="confirmed" id="confirmed"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="secNext"></div>
+
+  <div class="sec">
+    <div class="sec-eyebrow">Chaque lundi matin</div>
+    <h2>Ce que vous recevez, sans rien demander</h2>
+    <p>Un résumé de la semaine — pas un tableau de bord à consulter, un message à lire en trente secondes.</p>
+    <div class="report" id="report"></div>
+  </div>
+
+  <div class="close">
+    <h2 id="closeTitle"></h2>
+    <p id="closeBody"></p>
+    <div class="terms">
+      <div class="term"><div class="term-v">1500 DH</div><div class="term-k">Par mois, maintenance incluse</div></div>
+      <div class="term"><div class="term-v">14 jours</div><div class="term-k">Remboursé si non convaincu</div></div>
+      <div class="term"><div class="term-v">Aucun</div><div class="term-k">Engagement</div></div>
+    </div>
+    <div class="switcher" id="switcher"></div>
+  </div>
+
+</div>
+
+<script>
+var API_URL = "/api/reply";
+var isDental = window.location.pathname.indexOf("dentaire") !== -1;
+var NICHE = isDental ? "dentaire" : "immobilier";
+var chatHistory = [];
+
+var C = {
+  immobilier: {
+    sector: "Agences immobilières",
+    clock: "23:47 · UN MARDI SOIR",
+    title: "Un client vient d\u2019écrire.<br><span class=\"dim\">Votre agence est fermée.</span>",
+    sub: "Demain matin il aura déjà contacté quelqu\u2019un d\u2019autre. Sauf si quelqu\u2019un répond maintenant.",
+    threadLabel: "Conversation · WhatsApp",
+    placeholder: "Écrivez ce qu\u2019un de vos clients vous écrirait…",
+    seedFirst: "Bonjour, je cherche un appartement 3 chambres a Casablanca, quartier Maarif, budget 1.5M MAD. Je souhaite acheter avant la fin de l annee.",
+    metaLabel: "Budget",
+    slotsTitle: "Le client est prêt — le système propose une visite",
+    slotsSub: "Il choisit un créneau, et la visite arrive dans votre agenda.",
+    seeds: [
+      { l: "FR · recherche", t: "Bonjour, je cherche un appartement 3 chambres a Casablanca, quartier Maarif, budget 1.5M MAD. Je souhaite acheter avant la fin de l annee." },
+      { l: "DARIJA · vendre", t: "salam, 3ndi dar f casa bghit nbi3ha, chhal katakhdo commission w chhal kayswa taman dyalha?" },
+      { l: "EN · expatrié", t: "Hi, I am relocating to Rabat in October for work. Looking for a 3 bedroom apartment in Agdal, budget up to 15000 dirhams monthly. Is that realistic?" },
+      { l: "· message vague", t: "combien ?" }
+    ],
+    nextEyebrow: "Et ensuite",
+    nextTitle: "Répondre ne suffit pas. Il faut fixer la visite.",
+    nextBody: "<p>Un client sérieux ne veut pas s\u2019entendre dire « on vous rappelle ». Quand le budget et le délai sont clairs, le système propose directement deux créneaux.</p><p>Le client en choisit un. La visite apparaît dans votre agenda avec son nom, son numéro et ce qu\u2019il cherche. <strong>Personne dans votre équipe n\u2019a eu à intervenir.</strong></p>",
+    reportRows: [
+      { n: "23", k: "Demandes" }, { n: "23", k: "Répondues" },
+      { n: "6", k: "Sérieux" }, { n: "4", k: "Visites fixées" }
+    ],
+    reportNote: "<strong>Temps de réponse moyen : 1 min 18 s.</strong> Neuf demandes sont arrivées après la fermeture — toutes ont reçu une réponse immédiate.",
+    queue: [
+      { n: "Youssef Idrissi", d: "3 ch · Maarif · 1,5M MAD · avant décembre", t: "hot", l: "SÉRIEUX" },
+      { n: "Emma Wilson", d: "3 ch · Agdal · 15 000 DH/mois · octobre", t: "hot", l: "SÉRIEUX" },
+      { n: "Khalid Berrada", d: "Vente · Casa · estimation demandée", t: "warm", l: "À QUALIFIER" }
+    ],
+    closeTitle: "Vos clients continuent à vous écrire comme avant.",
+    closeBody: "Le système se branche sur votre WhatsApp Business — votre numéro, votre compte, vos accès. Rien ne change pour eux. Vous le débranchez quand vous voulez, sans passer par moi. 1500 DH/mois, maintenance incluse.",
+    switcher: 'Vous êtes une clinique dentaire ? <a href="/dentaire">Voir la version adaptée</a>'
+  },
+  dentaire: {
+    sector: "Cliniques dentaires",
+    clock: "23:14 · UN DIMANCHE SOIR",
+    title: "Un patient a mal.<br><span class=\"dim\">Le cabinet est fermé.</span>",
+    sub: "Il cherche déjà une autre clinique. Sauf si quelqu\u2019un lui répond dans la minute.",
+    threadLabel: "Conversation · WhatsApp",
+    placeholder: "Écrivez ce qu\u2019un de vos patients vous écrirait…",
+    seedFirst: "salam, 3ndi wja3 f sniya dyali bezzaf mn lbare7, wach mumkin nji ghedda? kanskon f Casa",
+    metaLabel: "Motif",
+    slotsTitle: "Patient prêt — le système propose un créneau",
+    slotsSub: "Il en choisit un, et le rendez-vous arrive dans votre agenda.",
+    seeds: [
+      { l: "DARIJA · douleur", t: "salam, 3ndi wja3 f sniya dyali bezzaf mn lbare7, wach mumkin nji ghedda? kanskon f Casa" },
+      { l: "FR · rendez-vous", t: "Bonjour, je voudrais prendre rendez-vous pour un detartrage et un controle. Je suis disponible plutot en fin de journee cette semaine." },
+      { l: "EN · implants", t: "Hello, I am travelling to Morocco next month and I am interested in dental implants. Could you tell me what the process involves and how many visits are needed?" },
+      { l: "· message vague", t: "bonjour" }
+    ],
+    nextEyebrow: "Ce qu\u2019il ne fait jamais",
+    nextTitle: "Il répond vite. Il ne soigne pas.",
+    nextBody: "<p>Le système ne donne aucun conseil médical, ne pose aucun diagnostic et n\u2019annonce aucun tarif. Face à une douleur, il rassure, prend les coordonnées et <strong>signale l\u2019urgence en priorité</strong> pour l\u2019ouverture.</p><p>Quand la demande est simple — détartrage, contrôle, consultation — il propose directement deux créneaux. Votre secrétariat trouve le rendez-vous déjà pris.</p>",
+    reportRows: [
+      { n: "41", k: "Demandes" }, { n: "41", k: "Répondues" },
+      { n: "5", k: "Urgences" }, { n: "12", k: "RDV fixés" }
+    ],
+    reportNote: "<strong>Temps de réponse moyen : 1 min 04 s.</strong> Dix-sept demandes sont arrivées hors des horaires du cabinet — toutes ont reçu une réponse immédiate.",
+    queue: [
+      { n: "Salma Bennani", d: "Douleur intense · reçu à 23h14 · orientée urgence", t: "hot", l: "URGENT" },
+      { n: "Thomas Lefevre", d: "Implants · patient international · octobre", t: "hot", l: "PRIORITAIRE" },
+      { n: "Karim Ouazzani", d: "Orthodontie · demande de consultation", t: "warm", l: "À RAPPELER" }
+    ],
+    closeTitle: "Vos patients continuent à vous écrire comme avant.",
+    closeBody: "Le système se branche sur votre WhatsApp Business — votre numéro, votre compte, vos accès. Rien ne change pour eux. Vous le débranchez quand vous voulez, sans passer par moi. 1500 DH/mois, maintenance incluse.",
+    switcher: 'Vous êtes une agence immobilière ? <a href="/">Voir la version adaptée</a>'
+  }
+}[NICHE];
+
+document.title = isDental ? "Répondo · cliniques dentaires" : "Répondo · agences immobilières";
+document.getElementById("sector").textContent = C.sector;
+document.getElementById("clockLine").textContent = C.clock;
+document.getElementById("heroTitle").innerHTML = C.title;
+document.getElementById("heroSub").textContent = C.sub;
+document.getElementById("threadLabel").textContent = C.threadLabel;
+document.getElementById("input").placeholder = C.placeholder;
+document.getElementById("input").value = C.seedFirst;
+document.getElementById("slotsTitle").textContent = C.slotsTitle;
+document.getElementById("slotsSub").textContent = C.slotsSub;
+document.getElementById("closeTitle").textContent = C.closeTitle;
+document.getElementById("closeBody").textContent = C.closeBody;
+document.getElementById("switcher").innerHTML = C.switcher;
+
+document.getElementById("secNext").innerHTML =
+  '<div class="sec-eyebrow">' + C.nextEyebrow + '</div>' +
+  '<h2>' + C.nextTitle + '</h2>' + C.nextBody;
+
+var seedWrap = document.getElementById("seeds");
+C.seeds.forEach(function (s) {
+  var b = document.createElement("button");
+  b.className = "seed";
+  b.textContent = s.l;
+  b.addEventListener("click", function () {
+    var el = document.getElementById("input");
+    el.value = s.t;
+    el.focus();
+  });
+  seedWrap.appendChild(b);
+});
+
+var reportHtml = '<div class="report-top"><h3>Votre semaine</h3><span>exemple</span></div><div class="numbers">';
+C.reportRows.forEach(function (r) {
+  reportHtml += '<div class="num"><div class="num-v">' + r.n + '</div><div class="num-k">' + r.k + '</div></div>';
+});
+reportHtml += '</div><div class="report-note">' + C.reportNote + '</div><div class="queue"><div class="queue-label">À rappeler en priorité</div>';
+C.queue.forEach(function (q) {
+  reportHtml += '<div class="q-row"><div><div class="q-name">' + q.n + '</div><div class="q-detail">' + q.d + '</div></div><span class="q-tag ' + q.t + '">' + q.l + '</span></div>';
+});
+reportHtml += '</div>';
+document.getElementById("report").innerHTML = reportHtml;
+
+function clockNow() {
+  return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function addMessage(text, side, extra) {
+  var thread = document.getElementById("thread");
+  var wrap = document.createElement("div");
+  wrap.className = "msg " + side;
+  var meta = document.createElement("div");
+  meta.className = "msg-meta";
+  var who = document.createElement("span");
+  who.textContent = (side === "them" ? "CLIENT" : "RÉPONDO") + " · " + clockNow();
+  meta.appendChild(who);
+  if (extra) {
+    var e = document.createElement("span");
+    e.className = "elapsed";
+    e.textContent = extra;
+    meta.appendChild(e);
+  }
+  var body = document.createElement("div");
+  body.className = "msg-body";
+  body.textContent = text;
+  wrap.appendChild(meta);
+  wrap.appendChild(body);
+  thread.appendChild(wrap);
+  return wrap;
+}
+
+function showTyping() {
+  var thread = document.getElementById("thread");
+  var t = document.createElement("div");
+  t.className = "typing";
+  t.id = "typingDots";
+  t.innerHTML = "<i></i><i></i><i></i>";
+  thread.appendChild(t);
+}
+
+function clearTyping() {
+  var t = document.getElementById("typingDots");
+  if (t) t.remove();
+}
+
+function resetAll() {
+  chatHistory = [];
+  document.getElementById("thread").innerHTML = "";
+  document.getElementById("readout").style.display = "none";
+  document.getElementById("slotsWrap").style.display = "none";
+  document.getElementById("confirmed").style.display = "none";
+  document.getElementById("fault").style.display = "none";
+  document.getElementById("input").value = C.seedFirst;
+  document.getElementById("send").textContent = "Répondre à ce message";
+}
+
+function confirmSlot(slot) {
+  var el = document.getElementById("confirmed");
+  el.innerHTML = "Rendez-vous fixé · <strong>" + slot + "</strong> — ajouté à votre agenda, confirmation envoyée.";
+  el.style.display = "block";
+  document.getElementById("slots").innerHTML = "";
+}
+
+function send() {
+  var input = document.getElementById("input");
+  var msg = input.value.trim();
+  var btn = document.getElementById("send");
+  var fault = document.getElementById("fault");
+
+  fault.style.display = "none";
+
+  if (!msg) {
+    fault.textContent = "Écrivez un message pour voir la réponse.";
+    fault.style.display = "block";
+    return;
+  }
+
+  addMessage(msg, "them");
+  input.value = "";
+  btn.disabled = true;
+  btn.textContent = "En cours…";
+  showTyping();
+
+  var start = Date.now();
+
+  fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: msg, history: chatHistory, niche: NICHE })
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    if (data.error) {
+      if (data.error === "CLE_API_MANQUANTE") throw new Error("La clé API n\u2019est pas encore configurée sur Vercel.");
+      throw new Error(data.error);
+    }
+
+    var secs = ((Date.now() - start) / 1000).toFixed(1);
+    clearTyping();
+    addMessage(data.reply, "us", secs + " s");
+
+    chatHistory.push({ role: "user", content: msg });
+    chatHistory.push({ role: "assistant", content: data.reply });
+
+    var cls = "warm", lbl = isDental ? "À rappeler" : "À qualifier";
+    if (data.score === "Hot") { cls = "hot"; lbl = isDental ? "Prioritaire" : "Client sérieux"; }
+    if (data.score === "Cold") { cls = "cold"; lbl = isDental ? "Simple question" : "Simple curiosité"; }
+
+    document.getElementById("facts").innerHTML =
+      '<div class="fact"><div class="fact-k">Qualification</div><div class="fact-v ' + cls + '">' + lbl + '</div></div>' +
+      '<div class="fact"><div class="fact-k">' + C.metaLabel + '</div><div class="fact-v">' + data.budget + '</div></div>' +
+      '<div class="fact"><div class="fact-k">Délai</div><div class="fact-v">' + data.timeline + '</div></div>' +
+      '<div class="fact"><div class="fact-k">Répondu en</div><div class="fact-v">' + secs + ' s</div></div>';
+
+    document.getElementById("readout").style.display = "block";
+
+    if (data.proposeBooking && data.suggestedSlots.length) {
+      var slots = document.getElementById("slots");
+      slots.innerHTML = "";
+      data.suggestedSlots.forEach(function (s) {
+        var b = document.createElement("button");
+        b.className = "slot";
+        b.textContent = s;
+        b.addEventListener("click", function () { confirmSlot(s); });
+        slots.appendChild(b);
+      });
+      document.getElementById("slotsWrap").style.display = "block";
+      document.getElementById("confirmed").style.display = "none";
+    } else {
+      document.getElementById("slotsWrap").style.display = "none";
+    }
+  })
+  .catch(function (e) {
+    clearTyping();
+    fault.textContent = e.message || "Le système n\u2019a pas répondu. Réessayez dans un instant.";
+    fault.style.display = "block";
+  })
+  .then(function () {
+    btn.disabled = false;
+    btn.textContent = "Envoyer";
+  });
+}
+
+document.getElementById("send").addEventListener("click", send);
+document.getElementById("restart").addEventListener("click", resetAll);
+document.getElementById("input").addEventListener("keydown", function (e) {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
+});
+</script>
+</body>
+</html>
