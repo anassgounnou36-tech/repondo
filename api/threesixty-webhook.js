@@ -1,33 +1,17 @@
-
-// Webhook unique 360dialog : gere 2 types d'evenements
-// 1. Notification "channel ready" -> on enregistre la cle API du client
-// 2. Message WhatsApp entrant -> on genere et envoie la reponse
+// Webhook Twilio pour WhatsApp — chaque client possede son PROPRE compte Twilio
+// (option A : le client cree son compte, fait le Self Sign-up, et nous transmet
+// son Account SID + Auth Token). Ce fichier gere donc PLUSIEURS comptes Twilio,
+// un par client, identifies par le numero WhatsApp destinataire du message.
 //
-// Corrections apportees :
-//  [1] Le client est identifie par le numero destinataire du message
-//      (metadata.display_phone_number). 360dialog ne renvoie pas votre cle
-//      de canal dans le webhook. L'ancien ?key= reste accepte en secours.
-//  [2] Memoire de conversation : les echanges precedents avec ce numero
-//      sont relus depuis Airtable et transmis au modele.
-//  [3] Messages non textuels (vocal, photo, document) : le client recoit
-//      toujours une reponse, et le lead est marque "New" pour traitement humain.
-//  [4] Anti-doublon : Meta/360dialog rejouent les webhooks non acquittes.
-//      On ignore un message deja traite (champ "WA Message ID").
+// Difference cle avec 360dialog : Twilio envoie le webhook en
+// application/x-www-form-urlencoded (pas du JSON), et Twilio attend une reponse
+// synchrone — soit du TwiML, soit un 200 vide suffit si on repond via l'API REST.
+// On repond ici via l'API REST (plus simple a raisonner, memes outils que le
+// webhook 360dialog) et on renvoie un TwiML vide pour satisfaire Twilio.
 
 const AIRTABLE_BASE = 'appJeJpHTfTIJakQ7';
 const LEADS_TABLE = 'tbl59sHf4hsoE7FIp';
 const CLIENTS_TABLE = 'tblYJSEz2VSRhNMHG';
-
-const CF = {
-  channelKey: 'fldkCBDYJF4Qnll6H',
-  phone: 'fldOXzvEjYtSbqohP',
-  entreprise: 'fldGwdcbt1I33jZG3',
-  secteur: 'fld0YFbfSlLqWkumX',
-  ville: 'fldNrMKDs6GZuLz2B',
-  services: 'fldwKCuQRy0FNCkFq',
-  ton: 'fldyjcEUkyhpVnOwY',
-  interdits: 'fldL2SWg5pcZZOEct'
-};
 
 const LF = {
   name: 'fldZ3Xokiao4CX8r1', email: 'fld3SglGSET6wOOFa', phone: 'fldJ7XXQouRocnJMW',
@@ -36,8 +20,11 @@ const LF = {
   client: 'flduLQneOSHEAxOzV'
 };
 
-// Message envoye quand on recoit un vocal / une photo / un document.
-// Volontairement bilingue : la plupart des clients marocains lisent les deux.
+// Champs Twilio a creer sur la table Clients (noms exacts, un par client) :
+//   "Twilio Account SID"   — commence par AC...
+//   "Twilio Auth Token"    — le jeton secret du compte
+//   "Twilio Phone"         — le numero WhatsApp du client, ex: +212661234567
+
 const REPONSE_NON_TEXTE =
   "Merci pour votre message ! Je ne peux pas encore lire les vocaux et les images — " +
   "pouvez-vous m'ecrire votre demande en quelques mots ? Quelqu'un de l'equipe regarde aussi de son cote.\n\n" +
@@ -69,40 +56,40 @@ function echapper(v) {
   return String(v || '').replace(/["'\\]/g, '');
 }
 
-// --- [1] Identification du client -----------------------------------------
-async function trouverClient(numeroDestinataire, cleSecours) {
+// Claude ecrit en markdown standard (**gras**) ; WhatsApp utilise sa propre
+// syntaxe (*gras*). Sans conversion, le client voit des asterisques doubles
+// affiches tels quels — ca ressemble immediatement a un bot mal fini.
+function versWhatsApp(t) {
+  return String(t || '')
+    .replace(/\*\*(.+?)\*\*/g, '*$1*')
+    .replace(/__(.+?)__/g, '_$1_')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^[-*]\s+/gm, '• ');
+}
+
+// --- Identification du client : par le numero Twilio qui a recu le message ---
+async function trouverClient(numeroDestinataire) {
   const num = digits(numeroDestinataire);
+  if (!num) return null;
 
-  if (num) {
-    const formule = `FIND("${num}", SUBSTITUTE(SUBSTITUTE(SUBSTITUTE({360dialog Phone}, " ", ""), "+", ""), "-", "")) > 0`;
-    const q = await airtable(
-      AIRTABLE_BASE + '/' + CLIENTS_TABLE +
-      '?filterByFormula=' + encodeURIComponent(formule) + '&maxRecords=1'
-    );
-    if (q.records && q.records[0]) return q.records[0];
-    console.error('Aucun client Airtable pour le numero destinataire ' + num);
-  }
+  const formule = `FIND("${num}", SUBSTITUTE(SUBSTITUTE(SUBSTITUTE({Twilio Phone}, " ", ""), "+", ""), "-", "")) > 0`;
+  const q = await airtable(
+    AIRTABLE_BASE + '/' + CLIENTS_TABLE +
+    '?filterByFormula=' + encodeURIComponent(formule) + '&maxRecords=1'
+  );
+  if (q.records && q.records[0]) return q.records[0];
 
-  if (cleSecours) {
-    const q = await airtable(
-      AIRTABLE_BASE + '/' + CLIENTS_TABLE +
-      '?filterByFormula=' + encodeURIComponent(`{360dialog Channel Key}='${echapper(cleSecours)}'`) + '&maxRecords=1'
-    );
-    if (q.records && q.records[0]) return q.records[0];
-  }
-
+  console.error('Aucun client Airtable pour le numero Twilio ' + num);
   return null;
 }
 
-// --- [4] Anti-doublon ------------------------------------------------------
-// Si le champ "WA Message ID" n'existe pas encore dans Airtable, on continue
-// sans dedoublonnage plutot que de bloquer la reponse au client.
-async function dejaTraite(messageId) {
-  if (!messageId) return false;
+// --- Anti-doublon : Twilio peut renvoyer le meme webhook en cas de timeout ---
+async function dejaTraite(messageSid) {
+  if (!messageSid) return false;
   try {
     const q = await airtable(
       AIRTABLE_BASE + '/' + LEADS_TABLE +
-      '?filterByFormula=' + encodeURIComponent(`{WA Message ID}='${echapper(messageId)}'`) + '&maxRecords=1'
+      '?filterByFormula=' + encodeURIComponent(`{WA Message ID}='${echapper(messageSid)}'`) + '&maxRecords=1'
     );
     if (q.error) return false;
     return !!(q.records && q.records[0]);
@@ -111,8 +98,7 @@ async function dejaTraite(messageId) {
   }
 }
 
-// --- [2] Memoire de conversation -------------------------------------------
-// Toute erreur ici est sans consequence : on repond simplement sans historique.
+// --- Memoire de conversation : erreur ici = on repond simplement sans historique
 async function historique(telephone, clientId) {
   try {
     const q = await airtable(
@@ -139,27 +125,32 @@ async function historique(telephone, clientId) {
   }
 }
 
-async function envoyerWhatsApp(cle, destinataire, texte) {
-  const r = await fetch('https://waba-v2.360dialog.io/messages', {
+// Envoi via l'API REST Twilio (Basic Auth avec le SID + jeton DU CLIENT, pas les notres)
+async function envoyerWhatsApp(accountSid, authToken, depuis, vers, texte) {
+  const auth = Buffer.from(accountSid + ':' + authToken).toString('base64');
+  const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
     method: 'POST',
-    headers: { 'D360-API-KEY': cle, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: destinataire,
-      type: 'text',
-      text: { body: texte }
-    })
+    headers: {
+      'Authorization': 'Basic ' + auth,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      From: 'whatsapp:' + depuis,
+      To: 'whatsapp:' + vers,
+      Body: texte
+    }).toString()
   });
+  if (!r.ok) console.error('Envoi Twilio echoue :', (await r.text()).slice(0, 300));
   return r.ok;
 }
 
-// Si le champ "WA Message ID" n'existe pas, Airtable refuse tout
-// l'enregistrement. On reessaie sans lui pour ne jamais perdre un lead.
 async function creerLead(champs) {
   const res = await airtable(AIRTABLE_BASE + '/' + LEADS_TABLE, {
     method: 'POST',
     body: JSON.stringify({ records: [{ fields: champs }], typecast: true })
   });
+  // Si "WA Message ID" n'existe pas encore comme champ, on reessaie sans lui
+  // plutot que de perdre le lead.
   if (res.error && champs['WA Message ID']) {
     console.error('Champ WA Message ID absent — creation sans dedoublonnage.');
     const copie = { ...champs };
@@ -172,92 +163,79 @@ async function creerLead(champs) {
   return res;
 }
 
-// --- EVENT 1 : un client vient de terminer l'inscription -------------------
-async function handleChannelReady(payload) {
-  const channel = payload.channels && payload.channels[0];
-  if (!channel) return { skipped: 'no channel in payload' };
+// Vercel decode automatiquement application/x-www-form-urlencoded dans req.body
+// pour les fonctions Node — pas besoin de parser manuellement.
+export default async function handler(req, res) {
+  res.setHeader('Content-Type', 'text/xml');
 
-  const phoneClean = digits(channel.phone_number);
-  const clientQuery = await airtable(
-    AIRTABLE_BASE + '/' + CLIENTS_TABLE +
-    '?filterByFormula=' + encodeURIComponent(`FIND("${phoneClean}", SUBSTITUTE({WhatsApp}, " ", "")) > 0`) +
-    '&maxRecords=1'
-  );
-  const clientRec = clientQuery.records && clientQuery.records[0];
-  if (!clientRec) {
-    console.error('Aucun client Airtable ne correspond au numero ' + phoneClean);
-    return { error: 'client not found for ' + phoneClean };
+  if (req.method !== 'POST') {
+    return res.status(200).send('<Response></Response>');
   }
 
-  const fields = {};
-  fields[CF.channelKey] = channel.api_key;
-  fields[CF.phone] = channel.phone_number;
+  const body = req.body || {};
 
-  await airtable(AIRTABLE_BASE + '/' + CLIENTS_TABLE + '/' + clientRec.id, {
-    method: 'PATCH',
-    body: JSON.stringify({ fields })
-  });
+  try {
+    // Statuts de livraison (delivered/read/failed) : rien a faire, on acquitte.
+    if (body.SmsStatus && body.SmsStatus !== 'received') {
+      return res.status(200).send('<Response></Response>');
+    }
 
-  return { ok: true, client: clientRec.id, channel: channel.id };
-}
+    const messageSid = body.MessageSid || body.SmsSid;
+    if (await dejaTraite(messageSid)) {
+      return res.status(200).send('<Response></Response>');
+    }
 
-// --- EVENT 2 : message WhatsApp entrant ------------------------------------
-async function handleIncomingMessage(payload, cleSecours) {
-  const entry = payload.entry && payload.entry[0];
-  const change = entry && entry.changes && entry.changes[0];
-  const value = change && change.value;
-  const msg = value && value.messages && value.messages[0];
-  if (!msg) return { skipped: 'no message in payload' };
+    // Twilio envoie "whatsapp:+212..." — on extrait le numero pur.
+    const versNumero = String(body.To || '').replace('whatsapp:', '');
+    const depuisNumero = String(body.From || '').replace('whatsapp:', '');
+    const text = body.Body || '';
+    const contactName = body.ProfileName || 'Client WhatsApp';
+    const nbMedia = parseInt(body.NumMedia || '0', 10);
 
-  if (await dejaTraite(msg.id)) return { skipped: 'doublon', id: msg.id };
+    const clientRec = await trouverClient(versNumero);
+    if (!clientRec) {
+      console.error('Client introuvable pour le numero Twilio ' + versNumero);
+      return res.status(200).send('<Response></Response>');
+    }
 
-  const fromPhone = msg.from;
-  const telephone = String(fromPhone).startsWith('+') ? fromPhone : '+' + fromPhone;
-  const text = (msg.text && msg.text.body) || '';
-  const contactName = (value.contacts && value.contacts[0] && value.contacts[0].profile && value.contacts[0].profile.name) || 'Client WhatsApp';
+    const accountSid = clientRec.fields['Twilio Account SID'];
+    const authToken = clientRec.fields['Twilio Auth Token'];
+    if (!accountSid || !authToken) {
+      console.error('Client ' + clientRec.id + ' sans identifiants Twilio');
+      return res.status(200).send('<Response></Response>');
+    }
 
-  const numeroRecu = value.metadata && value.metadata.display_phone_number;
-  const clientRec = await trouverClient(numeroRecu, cleSecours);
-  if (!clientRec) return { error: 'client introuvable pour ' + (numeroRecu || 'numero inconnu') };
+    // --- Message non textuel (vocal, image, document) : on repond quand meme
+    if (!text.trim() || nbMedia > 0) {
+      const envoye = await envoyerWhatsApp(accountSid, authToken, versNumero, depuisNumero, REPONSE_NON_TEXTE);
 
-  const channelApiKey = clientRec.fields['360dialog Channel Key'];
-  if (!channelApiKey) {
-    console.error('Client ' + clientRec.id + ' sans cle 360dialog');
-    return { error: 'cle 360dialog absente sur la fiche client' };
-  }
+      const champs = {};
+      champs[LF.name] = contactName;
+      champs[LF.phone] = depuisNumero;
+      champs[LF.message] = `[Message ${nbMedia > 0 ? 'media' : 'vide'} recu — non lisible par le systeme. A traiter manuellement.]`;
+      champs[LF.score] = 'Warm';
+      champs[LF.reply] = REPONSE_NON_TEXTE;
+      champs[LF.status] = 'New';
+      champs[LF.source] = 'WhatsApp';
+      champs[LF.date] = new Date().toISOString().slice(0, 10);
+      champs[LF.client] = [clientRec.id];
+      champs['WA Message ID'] = messageSid;
+      await creerLead(champs);
 
-  // --- [3] Message non textuel : on repond quand meme, et on alerte l'humain
-  if (!text.trim()) {
-    const type = msg.type || 'inconnu';
-    const envoye = await envoyerWhatsApp(channelApiKey, fromPhone, REPONSE_NON_TEXTE);
+      return res.status(200).send('<Response></Response>');
+    }
 
-    const champs = {};
-    champs[LF.name] = contactName;
-    champs[LF.phone] = telephone;
-    champs[LF.message] = `[Message ${type} recu — non lisible par le systeme. A traiter manuellement.]`;
-    champs[LF.score] = 'Warm';
-    champs[LF.reply] = REPONSE_NON_TEXTE;
-    champs[LF.status] = 'New';
-    champs[LF.source] = 'WhatsApp';
-    champs[LF.date] = new Date().toISOString().slice(0, 10);
-    champs[LF.client] = [clientRec.id];
-    champs['WA Message ID'] = msg.id;
-    await creerLead(champs);
+    const cf = clientRec.fields;
+    const configBlock = [
+      'Business: ' + (cf['Entreprise'] || 'Non precise'),
+      'Sector: ' + (cf['Secteur'] || 'Non precise'),
+      'City: ' + (cf['Ville'] || 'Non precise'),
+      'What they offer: ' + (cf['Services'] || 'Non precise'),
+      'Tone: ' + (cf['Ton'] || 'Chaleureux'),
+      'Never say: ' + (cf['Ne jamais dire'] || 'Aucun prix, aucune disponibilite, aucun taux de commission')
+    ].join('\n');
 
-    return { ok: true, type, envoye, note: 'message non textuel, humain alerte' };
-  }
-
-  const cf = clientRec.fields;
-  const configBlock = [
-    'Business: ' + (cf['Entreprise'] || 'Non precise'),
-    'Sector: ' + (cf['Secteur'] || 'Non precise'),
-    'City: ' + (cf['Ville'] || 'Non precise'),
-    'What they offer: ' + (cf['Services'] || 'Non precise'),
-    'Tone: ' + (cf['Ton'] || 'Chaleureux'),
-    'Never say: ' + (cf['Ne jamais dire'] || 'Aucun prix, aucune disponibilite, aucun taux de commission')
-  ].join('\n');
-
-  const SYSTEM_PROMPT = `You are answering WhatsApp messages on behalf of a business in Morocco.
+    const SYSTEM_PROMPT = `You are answering WhatsApp messages on behalf of a business in Morocco.
 
 === THE BUSINESS YOU REPRESENT ===
 ${configBlock}
@@ -274,8 +252,11 @@ Reply in EXACTLY the same language AND script the person used. English->English 
 === HONESTY RULE ===
 Never invent facts. No access to prices, availability, commission rates, or slots. If asked, say you will check and come back. Respect the client restrictions above absolutely.
 
+=== FORMATTING RULE ===
+This is WhatsApp, not email. NEVER use markdown formatting (no **, no __, no #, no markdown bullet lists). WhatsApp uses single asterisks for bold (*like this*) if emphasis is truly needed — use it sparingly, plain text is usually better.
+
 === STYLE ===
-WhatsApp, not email. Under 60 words. Natural, warm, human. No formal openings, no signature. Use their first name if known. Reference what they wrote. End with one clear question or a suggestion to arrange a time.
+Under 60 words. Natural, warm, human. No formal openings, no signature. Use their first name if known. Reference what they wrote. End with one clear question or a suggestion to arrange a time.
 
 === SCORING ===
 Hot = clear need AND a specific budget or timeline. Warm = some details, key info missing. Cold = vague or just browsing.
@@ -283,61 +264,44 @@ Hot = clear need AND a specific budget or timeline. Warm = some details, key inf
 Respond ONLY with raw JSON, no markdown, no backticks:
 {"score":"Hot","budget":"value or Non precise","timeline":"value or Non precise","reply":"your reply"}`;
 
-  // [2] Historique + message courant
-  const messages = (await historique(telephone, clientRec.id)).concat([
-    { role: 'user', content: 'Message recu de ' + contactName + ' :\n\n' + text }
-  ]);
+    const messages = (await historique(depuisNumero, clientRec.id)).concat([
+      { role: 'user', content: 'Message recu de ' + contactName + ' :\n\n' + text }
+    ]);
 
-  const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 800, system: SYSTEM_PROMPT, messages })
-  });
-  const claudeData = await claudeRes.json();
-  if (claudeData.error) return { error: 'claude: ' + claudeData.error.message };
-
-  const raw = claudeData.content.filter(b => b.type === 'text').map(b => b.text).join('');
-  const parsed = extractLastJson(raw) || { score: 'Warm', budget: 'Non precise', timeline: 'Non precise', reply: raw.replace(/```json/g, '').replace(/```/g, '').trim() };
-
-  const envoye = await envoyerWhatsApp(channelApiKey, fromPhone, parsed.reply);
-
-  const fields = {};
-  fields[LF.name] = contactName;
-  fields[LF.phone] = telephone;
-  fields[LF.message] = text;
-  fields[LF.score] = parsed.score;
-  fields[LF.reply] = parsed.reply;
-  fields[LF.status] = envoye ? 'Replied' : 'New';
-  fields[LF.source] = 'WhatsApp';
-  fields[LF.date] = new Date().toISOString().slice(0, 10);
-  fields[LF.client] = [clientRec.id];
-  fields['WA Message ID'] = msg.id;
-
-  await creerLead(fields);
-
-  return { ok: true, score: parsed.score, client: clientRec.id, envoye };
-}
-
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(200).json({ ok: true, service: 'Repondo 360dialog webhook' });
-
-  const body = req.body || {};
-
-  try {
-    if (body.channels) {
-      const result = await handleChannelReady(body);
-      return res.status(200).json(result);
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 800, system: SYSTEM_PROMPT, messages })
+    });
+    const claudeData = await claudeRes.json();
+    if (claudeData.error) {
+      console.error('Claude :', claudeData.error.message);
+      return res.status(200).send('<Response></Response>');
     }
 
-    if (body.entry) {
-      const cleSecours = req.headers['d360-api-key'] || (req.query && req.query.key) || null;
-      const result = await handleIncomingMessage(body, cleSecours);
-      return res.status(200).json(result);
-    }
+    const raw = claudeData.content.filter(b => b.type === 'text').map(b => b.text).join('');
+    const parsed = extractLastJson(raw) || { score: 'Warm', budget: 'Non precise', timeline: 'Non precise', reply: raw.replace(/```json/g, '').replace(/```/g, '').trim() };
 
-    return res.status(200).json({ skipped: 'unrecognized payload shape' });
+    const replyPropre = versWhatsApp(parsed.reply);
+    const envoye = await envoyerWhatsApp(accountSid, authToken, versNumero, depuisNumero, replyPropre);
+
+    const fields = {};
+    fields[LF.name] = contactName;
+    fields[LF.phone] = depuisNumero;
+    fields[LF.message] = text;
+    fields[LF.score] = parsed.score;
+    fields[LF.reply] = replyPropre;
+    fields[LF.status] = envoye ? 'Replied' : 'New';
+    fields[LF.source] = 'WhatsApp';
+    fields[LF.date] = new Date().toISOString().slice(0, 10);
+    fields[LF.client] = [clientRec.id];
+    fields['WA Message ID'] = messageSid;
+
+    await creerLead(fields);
+
+    return res.status(200).send('<Response></Response>');
   } catch (error) {
-    console.error('360dialog webhook failed:', error);
-    return res.status(200).json({ error: String(error) });
+    console.error('Twilio webhook failed:', error);
+    return res.status(200).send('<Response></Response>');
   }
 }
