@@ -1,0 +1,14 @@
+{
+  "name": "repondo",
+  "version": "1.0.0",
+  "description": "Répondo - Appointment booking system",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static site - no build needed'",
+    "lint": "echo 'No linter configured'"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^1.1.1"
+  },
+  "private": true
+}
