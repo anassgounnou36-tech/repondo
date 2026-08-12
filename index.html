@@ -16,7 +16,7 @@
   --rule:#DFE4EA;
   --ink:#111826;
   --ink-soft:#5A6579;
-  --ink-faint:#93A0B4;
+  --ink-faint:#5E6C82;
 
   --night:#0D1524;
   --night-raised:#182236;
@@ -147,6 +147,10 @@ body{
 @keyframes blink{ 0%,60%,100%{opacity:.25;} 30%{opacity:1;} }
 
 .composer{ padding:1.1rem 1.25rem 1.35rem; border-top:1px solid var(--night-line); }
+.composerHint{
+  font-family:var(--mono); font-size:11px; letter-spacing:.03em;
+  color:var(--night-soft); margin-bottom:.5rem;
+}
 .composer textarea{
   width:100%; min-height:74px; resize:vertical;
   background:var(--night-raised); border:1px solid var(--night-line);
@@ -179,6 +183,10 @@ body{
   color:#FCA5A5; font-size:13px;
 }
 
+.seedsLabel{
+  font-family:var(--mono); font-size:12px; letter-spacing:.03em;
+  color:var(--ink-soft); margin-bottom:.65rem;
+}
 .seeds{ display:flex; gap:.45rem; flex-wrap:wrap; margin-bottom:2.75rem; }
 .seed{
   font-family:var(--mono); font-size:11px; letter-spacing:.03em;
@@ -322,6 +330,7 @@ body{
     </div>
     <div class="thread" id="thread"></div>
     <div class="composer">
+      <p class="composerHint">Modifiez ce message, ou écrivez le vôtre.</p>
       <textarea id="input"></textarea>
       <div class="composer-row">
         <button class="send" id="send">Répondre à ce message</button>
@@ -331,6 +340,7 @@ body{
     </div>
   </div>
 
+  <p class="seedsLabel">Vrai système, en direct — pas une simulation. Essayez-le dans une autre langue&nbsp;:</p>
   <div class="seeds" id="seeds"></div>
 
   <div class="readout" id="readout">
@@ -345,35 +355,6 @@ body{
   </div>
 
   <div class="sec" id="secNext"></div>
-
-  <div class="sec" id="secStart">
-    <div class="sec-eyebrow">Étape suivante</div>
-    <h2>Comment ça se passe, concrètement</h2>
-    <div class="startSteps">
-      <div class="startStep">
-        <div class="startStep-num">1</div>
-        <div class="startStep-body">
-          <h4>Vous répondez à cet email</h4>
-          <p>Quelques mots suffisent — dites-moi simplement que ça vous intéresse.</p>
-        </div>
-      </div>
-      <div class="startStep">
-        <div class="startStep-num">2</div>
-        <div class="startStep-body">
-          <h4>Je configure votre système</h4>
-          <p>Le nom de votre entreprise, votre ton, ce qu'il ne faut jamais dire à un client sans votre accord.</p>
-        </div>
-      </div>
-      <div class="startStep">
-        <div class="startStep-num">3</div>
-        <div class="startStep-body">
-          <h4>Vous testez avant tout lancement</h4>
-          <p>Je vous envoie un lien de test. Rien ne part en réel avant votre accord.</p>
-        </div>
-      </div>
-    </div>
-    <p class="startNote">Vous avez reçu ce lien par email ? Le plus simple : répondez directement à cet email — j'y réponds personnellement, par écrit.</p>
-  </div>
 
   <div class="sec">
     <div class="sec-eyebrow">Chaque lundi matin</div>
@@ -391,6 +372,35 @@ body{
       <div class="term"><div class="term-v">Aucun</div><div class="term-k">Engagement</div></div>
     </div>
     <div class="switcher" id="switcher"></div>
+  </div>
+
+  <div class="sec" id="secStart">
+    <div class="sec-eyebrow">Étape suivante</div>
+    <h2>Comment ça se passe, concrètement</h2>
+    <div class="startSteps">
+      <div class="startStep">
+        <div class="startStep-num">1</div>
+        <div class="startStep-body">
+          <h3>Vous répondez à cet email</h3>
+          <p>Quelques mots suffisent — dites-moi simplement que ça vous intéresse.</p>
+        </div>
+      </div>
+      <div class="startStep">
+        <div class="startStep-num">2</div>
+        <div class="startStep-body">
+          <h3>Je configure votre système</h3>
+          <p>Le nom de votre entreprise, votre ton, ce qu'il ne faut jamais dire à un client sans votre accord.</p>
+        </div>
+      </div>
+      <div class="startStep">
+        <div class="startStep-num">3</div>
+        <div class="startStep-body">
+          <h3>Vous testez avant tout lancement</h3>
+          <p>Je vous envoie un lien de test. Rien ne part en réel avant votre accord.</p>
+        </div>
+      </div>
+    </div>
+    <p class="startNote">Vous avez reçu ce lien par email ? Le plus simple : répondez directement à cet email — j'y réponds personnellement, par écrit.</p>
   </div>
 
 </div>
