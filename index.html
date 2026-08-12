@@ -87,6 +87,16 @@ body{
   font-size:clamp(1rem,2.2vw,1.1rem); color:var(--ink-soft); max-width:46ch;
 }
 
+.scroll-cue{
+  display:inline-flex; align-items:center; gap:.4rem;
+  font-family:var(--mono); font-size:12px; letter-spacing:.06em;
+  color:var(--ink-faint); text-decoration:none; margin-top:.35rem;
+  transition:color .18s, gap .18s;
+}
+.scroll-cue:hover{ color:var(--ink); gap:.6rem; }
+.scroll-cue span{ display:inline-block; animation:bob 1.8s ease-in-out infinite; }
+@keyframes bob{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(3px);} }
+
 .night{
   background:var(--night); border-radius:18px; overflow:hidden;
   box-shadow:0 24px 60px -24px rgba(13,21,36,.5), 0 2px 8px rgba(13,21,36,.08);
@@ -245,6 +255,22 @@ body{
 .q-tag.hot{ background:rgba(15,159,99,.12); color:var(--signal-deep); }
 .q-tag.warm{ background:rgba(245,184,65,.16); color:#92650B; }
 
+.startSteps{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:12px; overflow:hidden; margin-bottom:1.1rem; }
+.startStep{ background:var(--paper-raised); padding:1.25rem 1.1rem; }
+.startStep-num{
+  font-family:var(--mono); font-size:12px; color:var(--signal-deep);
+  width:26px; height:26px; border-radius:50%; border:1px solid var(--signal);
+  display:flex; align-items:center; justify-content:center; margin-bottom:.75rem;
+}
+.startStep-body h4{ font-family:var(--display); font-size:15px; font-weight:600; margin-bottom:.35rem; letter-spacing:-.01em; }
+.startStep-body p{ font-size:13.5px; color:var(--ink-soft); }
+.startNote{ font-size:14px; color:var(--ink-soft); }
+.startNote{ margin-bottom:0 !important; }
+
+@media (max-width:640px){
+  .startSteps{ grid-template-columns:1fr; }
+}
+
 .close{ border-top:1px solid var(--rule); padding-top:2.25rem; }
 .close h2{ font-family:var(--display); font-size:clamp(1.4rem,3.4vw,1.8rem); font-weight:600; letter-spacing:-.025em; margin-bottom:.85rem; }
 .close p{ color:var(--ink-soft); max-width:52ch; margin-bottom:1.4rem; }
@@ -286,9 +312,10 @@ body{
     <div class="clock" id="clockLine"></div>
     <h1 id="heroTitle"></h1>
     <p id="heroSub"></p>
+    <a class="scroll-cue" href="#liveThread">Voir en direct <span aria-hidden="true">&darr;</span></a>
   </div>
 
-  <div class="night">
+  <div class="night" id="liveThread">
     <div class="night-head">
       <span id="threadLabel"></span>
       <span class="live"><i></i> en direct</span>
@@ -318,6 +345,35 @@ body{
   </div>
 
   <div class="sec" id="secNext"></div>
+
+  <div class="sec" id="secStart">
+    <div class="sec-eyebrow">Étape suivante</div>
+    <h2>Comment ça se passe, concrètement</h2>
+    <div class="startSteps">
+      <div class="startStep">
+        <div class="startStep-num">1</div>
+        <div class="startStep-body">
+          <h4>Vous répondez à cet email</h4>
+          <p>Quelques mots suffisent — dites-moi simplement que ça vous intéresse.</p>
+        </div>
+      </div>
+      <div class="startStep">
+        <div class="startStep-num">2</div>
+        <div class="startStep-body">
+          <h4>Je configure votre système</h4>
+          <p>Le nom de votre entreprise, votre ton, ce qu'il ne faut jamais dire à un client sans votre accord.</p>
+        </div>
+      </div>
+      <div class="startStep">
+        <div class="startStep-num">3</div>
+        <div class="startStep-body">
+          <h4>Vous testez avant tout lancement</h4>
+          <p>Je vous envoie un lien de test. Rien ne part en réel avant votre accord.</p>
+        </div>
+      </div>
+    </div>
+    <p class="startNote">Vous avez reçu ce lien par email ? Le plus simple : répondez directement à cet email — j'y réponds personnellement, par écrit.</p>
+  </div>
 
   <div class="sec">
     <div class="sec-eyebrow">Chaque lundi matin</div>
