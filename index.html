@@ -304,10 +304,6 @@ body{
   .send,.restart{ width:100%; }
 }
 </style>
-<script type="module">
-import { inject } from 'https://cdn.jsdelivr.net/npm/@vercel/analytics@1/dist/index.mjs';
-inject();
-</script>
 </head>
 <body>
 <div class="shell">
@@ -674,5 +670,9 @@ document.getElementById("input").addEventListener("keydown", function (e) {
   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
 });
 </script>
+<script>
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
